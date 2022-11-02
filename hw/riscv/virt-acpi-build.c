@@ -106,7 +106,7 @@ static void build_rhct(GArray *table_data,
     RISCVCPU *cpu;
     char *isa;
     size_t len, aligned_len;
-    uint32_t isa_offset, num_rhct_nodes;
+    uint32_t isa_offset, num_rhct_nodes, cmo_offset;
 
     AcpiTable table = { .sig = "RHCT", .rev = 1, .oem_id = s->oem_id,
                         .oem_table_id = s->oem_table_id };
@@ -120,7 +120,7 @@ static void build_rhct(GArray *table_data,
                               RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, 8);
 
     /* ISA + N hart info */
-    num_rhct_nodes = 1 + ms->smp.cpus;
+    num_rhct_nodes = 2 + ms->smp.cpus;
 
     /* Number of RHCT nodes*/
     build_append_int_noprefix(table_data, num_rhct_nodes, 4);
@@ -148,10 +148,19 @@ static void build_rhct(GArray *table_data,
         build_append_int_noprefix(table_data, 0x0, 1);   /* Optional Padding */
     }
 
+    /* CMO node */
+    cmo_offset = table_data->len - table.table_offset;
+    build_append_int_noprefix(table_data, 1, 2);    /* Type */
+    build_append_int_noprefix(table_data, 12, 2);    /* Total length */
+    build_append_int_noprefix(table_data, 0x1, 2);   /* Revision */
+    build_append_int_noprefix(table_data, 64, 2);    /* CBOM Block Size */
+    build_append_int_noprefix(table_data, 64, 2);    /* CBOP Block Size */
+    build_append_int_noprefix(table_data, 64, 2);    /* CBOZ Block Size */
+
     for (socket = 0; socket < riscv_socket_count(ms); socket++) {
         for (i = 0; i < s->soc[socket].num_harts; i++) {
             build_append_int_noprefix(table_data, 0xFFFF, 2);  /* Type */
-            build_append_int_noprefix(table_data, 16, 2);      /* Length */
+            build_append_int_noprefix(table_data, 20, 2);      /* Length */
             build_append_int_noprefix(table_data, 0x1, 2);     /* Revision */
             build_append_int_noprefix(table_data, 1, 2); /* Number of offsets */
 
@@ -160,6 +169,7 @@ static void build_rhct(GArray *table_data,
 
             /* Offsets[0] */
             build_append_int_noprefix(table_data, isa_offset, 4);
+            build_append_int_noprefix(table_data, cmo_offset, 4);
             acpi_proc_id++;
         }
     }
