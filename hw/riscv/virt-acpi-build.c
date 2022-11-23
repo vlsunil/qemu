@@ -230,6 +230,9 @@ static void build_madt(GArray *table_data,
     uint32_t imsic_size;
     uint8_t  guest_index_bits;
     uint16_t imsic_max_hart_per_socket;
+    uint8_t  hart_index_bits, group_index_bits;
+    uint8_t  group_index_shift;
+
 
     AcpiTable table = { .sig = "APIC", .rev = 6, .oem_id = s->oem_id,
                         .oem_table_id = s->oem_table_id };
@@ -248,6 +251,11 @@ static void build_madt(GArray *table_data,
     }
 
     guest_index_bits = acpi_num_bits(s->aia_guests + 1);
+    hart_index_bits = acpi_num_bits(imsic_max_hart_per_socket);
+    group_index_bits = acpi_num_bits(riscv_socket_count(ms));
+    group_index_shift = IMSIC_MMIO_GROUP_MIN_SHIFT;
+    guest_index_bits = acpi_num_bits(s->aia_guests + 1);
+
 
     /* RISC-V Local INTC structures per HART */
     for (socket = 0; socket < riscv_socket_count(ms); socket++) {
@@ -271,6 +279,21 @@ static void build_madt(GArray *table_data,
             build_append_int_noprefix(table_data, imsic_size, 4);
             cpu_id++;
         }
+    }
+
+    if (s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) {
+        /* IMSIC */
+        build_append_int_noprefix(table_data, 0x19, 1);     /* Type */
+        build_append_int_noprefix(table_data, 16, 1);       /* Length */
+        build_append_int_noprefix(table_data, 1, 1);        /* Version */
+        build_append_int_noprefix(table_data, 0, 1);        /* Reserved */
+        build_append_int_noprefix(table_data, 0, 4);        /* Flags */
+        build_append_int_noprefix(table_data, VIRT_IRQCHIP_NUM_MSIS, 2); /* S-level */
+        build_append_int_noprefix(table_data, VIRT_IRQCHIP_NUM_MSIS, 2); /* VS-level */
+        build_append_int_noprefix(table_data, guest_index_bits, 1);
+        build_append_int_noprefix(table_data, hart_index_bits, 1);
+        build_append_int_noprefix(table_data, group_index_bits, 1);
+        build_append_int_noprefix(table_data, group_index_shift, 1);
     }
 
     acpi_table_end(linker, &table);
