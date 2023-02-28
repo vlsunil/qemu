@@ -44,6 +44,8 @@
 
 #define ACPI_BUILD_TABLE_SIZE             0x20000
 
+#define ACPI_BUILD_INTC_ID(socket, index) ((socket << 24) | (index))
+
 typedef struct AcpiBuildState {
     /* Copy of table in RAM (for patching). */
     MemoryRegion *table_mr;
@@ -370,9 +372,24 @@ build_madt(GArray *table_data, BIOSLinker *linker, RISCVVirtState *vms)
             build_append_int_noprefix(table_data,
                                       (base_hartid + i), 8);   /* hartid       */
             build_append_int_noprefix(table_data, cpu_id, 4);  /* ACPI Proc ID */
-            build_append_int_noprefix(table_data, socket, 4);  /* APLIC ID */
-            build_append_int_noprefix(table_data, imsic_addr, 8);
-            build_append_int_noprefix(table_data, imsic_size, 4);
+            if (vms->aia_type != VIRT_AIA_TYPE_NONE) {
+                /* AIA APLIC/IMSIC support */
+                build_append_int_noprefix(table_data, socket, 4);  /* APLIC ID */
+                build_append_int_noprefix(table_data, imsic_addr, 8);
+                build_append_int_noprefix(table_data, imsic_size, 4);
+            } else {
+                /* Legacy PLIC support */
+                /* Assume homogeneous mode for all harts, etc "MS,MS,MS,..."
+                   Will cover heterogenous mode later, etc "M,MS,MS,..."
+
+                   For PLIC, the aplic_id format is as follows:
+                   Bits [31:24] PLIC ID
+                   Bits [15:0] PLIC S-Mode Context ID for this hart
+                 */
+                build_append_int_noprefix(table_data, ACPI_BUILD_INTC_ID(socket, 2 * i + 1), 4);
+                build_append_int_noprefix(table_data, 0, 8);
+                build_append_int_noprefix(table_data, 0, 4);
+            }
             cpu_id++;
         }
     }
@@ -412,6 +429,23 @@ build_madt(GArray *table_data, BIOSLinker *linker, RISCVVirtState *vms)
             build_append_int_noprefix(table_data, aplic_addr, 8);        /* MMIO base */
             build_append_int_noprefix(table_data, vms->memmap[VIRT_APLIC_S].size, 4); /* MMIO size */
             build_append_int_noprefix(table_data, VIRT_IRQCHIP_NUM_SOURCES, 2);        /* nr_irqs */
+        }
+    } else {
+        /* PLICs */
+        for (socket = 0; socket < riscv_socket_count(mc); socket++) {
+            aplic_addr = vms->memmap[VIRT_PLIC].base + vms->memmap[VIRT_PLIC].size * socket;
+            gsi_base = VIRT_IRQCHIP_NUM_SOURCES * socket;
+            build_append_int_noprefix(table_data, 0x1B, 1);     /* Type */
+            build_append_int_noprefix(table_data, 36, 1);       /* Length */
+            build_append_int_noprefix(table_data, 1, 1);        /* Version */
+            build_append_int_noprefix(table_data, socket, 1);   /* PLIC ID */
+            build_append_int_noprefix(table_data, 0, 8);        /* MFG ID */
+            build_append_int_noprefix(table_data, VIRT_IRQCHIP_NUM_SOURCES, 2);        /* nr_irqs */
+            build_append_int_noprefix(table_data, 0, 2);        /* Max priority */
+            build_append_int_noprefix(table_data, 0, 4);        /* Flags */
+            build_append_int_noprefix(table_data, vms->memmap[VIRT_PLIC].size, 4); /* MMIO size */
+            build_append_int_noprefix(table_data, aplic_addr, 8);        /* MMIO base */
+            build_append_int_noprefix(table_data, gsi_base, 4);        /* GSI Base */
         }
     }
 

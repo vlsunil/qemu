@@ -1343,8 +1343,7 @@ static void virt_machine_done(Notifier *notifier, void *data)
         riscv_setup_direct_kernel(kernel_entry, fdt_load_addr);
     }
 
-    if ((s->aia_type != VIRT_AIA_TYPE_NONE) &&
-		    virt_is_acpi_enabled(s))
+    if (virt_is_acpi_enabled(s))
 	    virt_acpi_setup(s);
 }
 
