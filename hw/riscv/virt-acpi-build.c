@@ -248,7 +248,7 @@ static void build_rhct(GArray *table_data,
     MachineState *ms = MACHINE(s);
     const CPUArchIdList *arch_ids = mc->possible_cpu_arch_ids(ms);
     size_t len, aligned_len;
-    uint32_t isa_offset, num_rhct_nodes;
+    uint32_t isa_offset, num_rhct_nodes, cmo_offset;
     RISCVCPU *cpu;
     char *isa;
 
@@ -263,8 +263,8 @@ static void build_rhct(GArray *table_data,
     build_append_int_noprefix(table_data,
                               RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, 8);
 
-    /* ISA + N hart info */
-    num_rhct_nodes = 1 + ms->smp.cpus;
+    /* ISA + CMO + N hart info */
+    num_rhct_nodes = 2 + ms->smp.cpus;
 
     /* Number of RHCT nodes*/
     build_append_int_noprefix(table_data, num_rhct_nodes, 4);
@@ -292,14 +292,25 @@ static void build_rhct(GArray *table_data,
         build_append_int_noprefix(table_data, 0x0, 1);   /* Optional Padding */
     }
 
+    /* CMO node */
+    cmo_offset = table_data->len - table.table_offset;
+    build_append_int_noprefix(table_data, 1, 2);    /* Type */
+    build_append_int_noprefix(table_data, 10, 2);    /* Total length */
+    build_append_int_noprefix(table_data, 0x1, 2);   /* Revision */
+    build_append_int_noprefix(table_data, 0, 1);    /* Reserved */
+    build_append_int_noprefix(table_data, 6, 1);    /* CBOM Block Size (powerof 2) */
+    build_append_int_noprefix(table_data, 6, 1);    /* CBOP Block Size (powerof 2) */
+    build_append_int_noprefix(table_data, 6, 1);    /* CBOZ Block Size (powerof 2) */
+
     /* Hart Info Node */
     for (int i = 0; i < arch_ids->len; i++) {
         build_append_int_noprefix(table_data, 0xFFFF, 2);  /* Type */
-        build_append_int_noprefix(table_data, 16, 2);      /* Length */
+        build_append_int_noprefix(table_data, 20, 2);      /* Length */
         build_append_int_noprefix(table_data, 0x1, 2);     /* Revision */
-        build_append_int_noprefix(table_data, 1, 2);    /* Number of offsets */
+        build_append_int_noprefix(table_data, 2, 2);    /* Number of offsets */
         build_append_int_noprefix(table_data, i, 4);    /* ACPI Processor UID */
         build_append_int_noprefix(table_data, isa_offset, 4); /* Offsets[0] */
+        build_append_int_noprefix(table_data, cmo_offset, 4); /* Offsets[1] */
     }
 
     acpi_table_end(linker, &table);
