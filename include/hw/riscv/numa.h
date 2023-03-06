@@ -108,6 +108,7 @@ CpuInstanceProperties
 riscv_numa_cpu_index_to_props(MachineState *ms, unsigned cpu_index);
 
 int64_t riscv_numa_get_default_cpu_node_id(const MachineState *ms, int idx);
+int riscv_numa_get_cpu_local_core_id(const MachineState *ms, int idx);
 
 const CPUArchIdList *riscv_numa_possible_cpu_arch_ids(MachineState *ms);
 
