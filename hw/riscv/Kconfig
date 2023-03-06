@@ -45,6 +45,7 @@ config RISCV_VIRT
     select SERIAL
     select RISCV_ACLINT
     select RISCV_APLIC
+    select RISCV_IOMMU
     select RISCV_IMSIC
     select RISCV_RPMI
     select SIFIVE_PLIC
