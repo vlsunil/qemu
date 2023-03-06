@@ -217,6 +217,15 @@ int64_t riscv_numa_get_default_cpu_node_id(const MachineState *ms, int idx)
     return nidx;
 }
 
+int riscv_numa_get_cpu_local_core_id(const MachineState *ms, int idx)
+{
+    if (ms->numa_state->num_nodes) {
+        return idx % (ms->smp.cpus / ms->numa_state->num_nodes);
+    } else {
+        return idx;
+    }
+}
+
 const CPUArchIdList *riscv_numa_possible_cpu_arch_ids(MachineState *ms)
 {
     int n;
