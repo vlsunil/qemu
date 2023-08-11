@@ -58,6 +58,24 @@ int gpex_set_irq_num(GPEXHost *s, int index, int gsi)
     return 0;
 }
 
+void gpex_set_config(GPEXHost *s,
+                    uint64_t ecam_base, uint32_t ecam_size,
+                    uint64_t mmio32_base, uint32_t mmio32_size,
+                    uint64_t mmio64_base, uint32_t mmio64_size,
+                    uint64_t pio_base, uint32_t pio_size
+                    )
+{
+    s->gpex_cfg.ecam.base = ecam_base;
+    s->gpex_cfg.ecam.size = ecam_size;
+    s->gpex_cfg.mmio32.base = mmio32_base;
+    s->gpex_cfg.mmio32.size = mmio32_size;
+    s->gpex_cfg.mmio64.base = mmio64_base;
+    s->gpex_cfg.mmio64.size = mmio64_size;
+    s->gpex_cfg.pio.base = pio_base;
+    s->gpex_cfg.pio.size = pio_size;
+    s->gpex_cfg.bus = PCI_HOST_BRIDGE(s)->bus;
+}
+
 static PCIINTxRoute gpex_route_intx_pin_to_irq(void *opaque, int pin)
 {
     PCIINTxRoute route;
@@ -154,6 +172,14 @@ static Property gpex_host_properties[] = {
      */
     DEFINE_PROP_BOOL("allow-unmapped-accesses", GPEXHost,
                      allow_unmapped_accesses, true),
+    DEFINE_PROP_UINT64(PCI_HOST_ECAM_BASE, GPEXHost, gpex_cfg.ecam.base, 0),
+    DEFINE_PROP_SIZE(PCI_HOST_ECAM_SIZE, GPEXHost, gpex_cfg.ecam.size, 0),
+    DEFINE_PROP_UINT64(PCI_HOST_PIO_BASE, GPEXHost, gpex_cfg.pio.base, 0),
+    DEFINE_PROP_SIZE(PCI_HOST_PIO_SIZE, GPEXHost, gpex_cfg.pio.size, 0),
+    DEFINE_PROP_UINT64(PCI_HOST_BELOW_4G_MEM_BASE, GPEXHost, gpex_cfg.mmio32.base, 0),
+    DEFINE_PROP_SIZE(PCI_HOST_BELOW_4G_MEM_SIZE, GPEXHost, gpex_cfg.mmio32.size, 0),
+    DEFINE_PROP_UINT64(PCI_HOST_ABOVE_4G_MEM_BASE, GPEXHost, gpex_cfg.mmio64.base, 0),
+    DEFINE_PROP_SIZE(PCI_HOST_ABOVE_4G_MEM_SIZE, GPEXHost, gpex_cfg.mmio64.size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

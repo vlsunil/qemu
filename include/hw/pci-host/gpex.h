@@ -40,6 +40,15 @@ struct GPEXRootState {
     /*< public >*/
 };
 
+struct GPEXConfig {
+    MemMapEntry ecam;
+    MemMapEntry mmio32;
+    MemMapEntry mmio64;
+    MemMapEntry pio;
+    int         irq;
+    PCIBus      *bus;
+};
+
 struct GPEXHost {
     /*< private >*/
     PCIExpressHost parent_obj;
@@ -55,19 +64,28 @@ struct GPEXHost {
     int irq_num[GPEX_NUM_IRQS];
 
     bool allow_unmapped_accesses;
-};
 
-struct GPEXConfig {
-    MemMapEntry ecam;
-    MemMapEntry mmio32;
-    MemMapEntry mmio64;
-    MemMapEntry pio;
-    int         irq;
-    PCIBus      *bus;
+    struct GPEXConfig gpex_cfg;
 };
 
 int gpex_set_irq_num(GPEXHost *s, int index, int gsi);
 
-void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg);
+void gpex_set_config(GPEXHost *s,
+                    uint64_t ecam_base, uint32_t ecam_size,
+                    uint64_t mmio32_base, uint32_t mmio32_size,
+                    uint64_t mmio64_base, uint32_t mmio64_size,
+                    uint64_t pio_base, uint32_t pio_size
+                    );
 
+void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg);
+void acpi_dsdt_add_gpex_pci(Aml *scope, uint32_t irq, struct GPEXHost *gh);
+
+#define PCI_HOST_PIO_BASE             "pio-base"
+#define PCI_HOST_PIO_SIZE             "pio-size"
+#define PCI_HOST_ECAM_BASE            "ecam-base"
+#define PCI_HOST_ECAM_SIZE            "ecam-size"
+#define PCI_HOST_BELOW_4G_MEM_BASE     "below-4g-mem-base"
+#define PCI_HOST_ABOVE_4G_MEM_BASE     "above-4g-mem-base"
+#define PCI_HOST_BELOW_4G_MEM_SIZE     "below-4g-mem-size"
+#define PCI_HOST_ABOVE_4G_MEM_SIZE     "above-4g-mem-size"
 #endif /* HW_GPEX_H */
