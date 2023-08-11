@@ -179,22 +179,6 @@ acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
     aml_append(scope, dev);
 }
 
-static void
-acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
-                   uint32_t irq, RISCVVirtState *s)
-{
-    struct GPEXConfig cfg = {
-        .mmio32 = memmap[VIRT_PCIE_MMIO],
-        .mmio64 = memmap[VIRT_HIGH_PCIE_MMIO],
-        .pio = memmap[VIRT_PCIE_PIO],
-        .ecam = memmap[VIRT_PCIE_ECAM],
-        .irq = irq,
-        .bus = s->bus,
-    };
-
-    acpi_dsdt_add_gpex(scope, &cfg);
-}
-
 /* RHCT Node[N] starts at offset 56 */
 #define RHCT_NODE_ARRAY_OFFSET 56
 
@@ -403,21 +387,19 @@ static void build_dsdt(GArray *table_data,
     if (socket_count == 1) {
         acpi_dsdt_add_virtio(scope, &memmap[VIRT_VIRTIO],
                              VIRTIO_IRQ, VIRTIO_COUNT);
-        acpi_dsdt_add_pci(scope, memmap, PCIE_IRQ, s);
+        acpi_dsdt_add_gpex_pci(scope, PCIE_IRQ, s->gpex_host);
     } else if (socket_count == 2) {
         acpi_dsdt_add_virtio(scope, &memmap[VIRT_VIRTIO],
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
                              VIRTIO_COUNT);
-        acpi_dsdt_add_pci(scope, memmap,
-                          PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
-                          s);
+        acpi_dsdt_add_gpex_pci(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
+                               s->gpex_host);
     } else {
         acpi_dsdt_add_virtio(scope, &memmap[VIRT_VIRTIO],
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
                              VIRTIO_COUNT);
-        acpi_dsdt_add_pci(scope, memmap,
-                          PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2,
-                          s);
+        acpi_dsdt_add_gpex_pci(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2,
+                          s->gpex_host);
     }
 
     aml_append(dsdt, scope);
