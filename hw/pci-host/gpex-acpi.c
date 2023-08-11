@@ -281,3 +281,41 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
 
     crs_range_set_free(&crs_range_set);
 }
+
+void acpi_dsdt_add_gpex_pci(Aml *scope, uint32_t irq, struct GPEXHost *gh)
+{
+#if 0
+    struct GPEXConfig cfg = {
+
+        .mmio32.base = object_property_get_uint(OBJECT(gh),
+                                                PCI_HOST_BELOW_4G_MEM_BASE,
+                                                &error_abort),
+        .mmio32.size = object_property_get_int(OBJECT(gh),
+                                                PCI_HOST_BELOW_4G_MEM_SIZE,
+                                                &error_abort),
+        .mmio64.base = object_property_get_uint(OBJECT(gh),
+                                                PCI_HOST_ABOVE_4G_MEM_BASE,
+                                                &error_abort),
+        .mmio64.size = object_property_get_int(OBJECT(gh),
+                                                PCI_HOST_ABOVE_4G_MEM_SIZE,
+                                                &error_abort),
+        .pio.base = object_property_get_uint(OBJECT(gh),
+                                                PCI_HOST_PIO_BASE,
+                                                &error_abort),
+        .pio.size = object_property_get_int(OBJECT(gh),
+                                                PCI_HOST_PIO_SIZE,
+                                                &error_abort),
+        .ecam.base = object_property_get_uint(OBJECT(gh),
+                                                PCI_HOST_ECAM_BASE,
+                                                &error_abort),
+        .ecam.size = object_property_get_int(OBJECT(gh),
+                                                PCI_HOST_ECAM_SIZE,
+                                                &error_abort),
+        .irq = irq,
+        .bus = PCI_HOST_BRIDGE(gh)->bus,
+    };
+#endif
+    struct GPEXConfig *cfg = &gh->gpex_cfg;
+    cfg->irq = irq;
+    acpi_dsdt_add_gpex(scope, cfg);
+}
