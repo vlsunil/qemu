@@ -998,14 +998,23 @@ Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
 Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
                    AmlLevelAndEdge level_and_edge,
                    AmlActiveHighAndLow high_and_low, AmlShared shared,
-                   uint32_t *irq_list, uint8_t irq_count)
+                   uint32_t *irq_list, uint8_t irq_count,
+                   const char *resource_source_name)
 {
     int i;
     Aml *var = aml_alloc();
     uint8_t irq_flags = con_and_pro | (level_and_edge << 1)
                         | (high_and_low << 2) | (shared << 3);
     const int header_bytes_in_len = 2;
-    uint16_t len = header_bytes_in_len + irq_count * sizeof(uint32_t);
+    uint16_t resource_source_len = 0;
+    uint16_t reserved_source_index_len = 0;
+    uint16_t len;
+
+    if (resource_source_name) {
+        resource_source_len = strlen(resource_source_name) + 1;
+        reserved_source_index_len = 1;
+    }
+    len = header_bytes_in_len + reserved_source_index_len + resource_source_len + irq_count * sizeof(uint32_t);
 
     assert(irq_count > 0);
 
@@ -1019,6 +1028,13 @@ Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
     for (i = 0; i < irq_count; i++) {
         build_append_int_noprefix(var->buf, irq_list[i], 4);
     }
+
+    if (resource_source_name) {
+        build_append_byte(var->buf, 0);
+        /* This is a string, not a name, so just copy it directly in. */
+        g_array_append_vals(var->buf, resource_source_name, resource_source_len);
+    }
+
     return var;
 }
 
