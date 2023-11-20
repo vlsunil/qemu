@@ -2453,15 +2453,19 @@ static AddressSpace *riscv_iommu_find_as(PCIBus *bus, void *opaque, int devfn)
     return as ? as : &address_space_memory;
 }
 
+static const PCIIOMMUOps riscv_iommu_ops = {
+    .get_address_space = riscv_iommu_find_as,
+};
+
 void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
         Error **errp)
 {
-    if (bus->iommu_fn == riscv_iommu_find_as) {
+    if (bus->iommu_ops && bus->iommu_ops->get_address_space == riscv_iommu_find_as) {
         /* Allow multiple IOMMUs on the same PCIe bus, link known devices */
         RISCVIOMMUState *last = (RISCVIOMMUState *)bus->iommu_opaque;
         QLIST_INSERT_AFTER(last, iommu, iommus);
-    } else if (bus->iommu_fn == NULL) {
-        pci_setup_iommu(bus, riscv_iommu_find_as, iommu);
+    } else if (bus->iommu_ops == NULL) {
+        pci_setup_iommu(bus, &riscv_iommu_ops, iommu);
     } else {
         error_setg(errp, "can't register secondary IOMMU for PCI bus #%d",
             pci_bus_num(bus));
