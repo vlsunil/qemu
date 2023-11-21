@@ -1292,6 +1292,8 @@ static void create_fdt_iommu(RISCVVirtState *s, uint16_t bdf)
     g_free(pci_node);
 }
 
+static uint64_t iommu_bdf;
+
 static void finalize_fdt(RISCVVirtState *s)
 {
     MachineState *ms = MACHINE(s);
@@ -1312,6 +1314,9 @@ static void finalize_fdt(RISCVVirtState *s)
     create_fdt_uart(s, virt_memmap, irq_mmio_phandle);
 
     create_fdt_rtc(s, virt_memmap, irq_mmio_phandle);
+
+    //HACK see virt_machine_device_plug_cb
+    create_fdt_iommu(s, iommu_bdf);
 
     if (s->have_rpmi) {
         for (i = 0; i < rpmi_xports; i++) {
@@ -2124,7 +2129,11 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
     }
     if (object_dynamic_cast(OBJECT(dev), TYPE_RISCV_IOMMU_PCI)) {
         PCIDevice *pdev = PCI_DEVICE(dev);
-        create_fdt_iommu(s, pci_get_bdf(pdev));
+        //FIXME: It may be too early for this
+        //create_fdt_iommu(s, pci_get_bdf(pdev));
+
+        //HACK: capture the bdf for later
+        iommu_bdf = pci_get_bdf(pdev);
     }
 }
 
