@@ -260,7 +260,7 @@ static void build_uart_device_aml(Aml *table)
                          0, VIRT_UART_BASE, VIRT_UART_BASE + VIRT_UART_SIZE - 1,
                          0, VIRT_UART_SIZE));
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                  AML_SHARED, &uart_irq, 1));
+                                  AML_SHARED, &uart_irq, 1, NULL));
     aml_append(dev, aml_name_decl("_CRS", crs));
     pkg0 = aml_package(0x2);
     aml_append(pkg0, aml_int(0x05F5E100));
@@ -308,7 +308,7 @@ static void build_pci_device_aml(Aml *scope, LoongArchMachineState *lams)
         .bus         = lams->pci_bus,
     };
 
-    acpi_dsdt_add_gpex(scope, &cfg);
+    acpi_dsdt_add_gpex(scope, &cfg, NULL);
 }
 
 static void build_flash_aml(Aml *scope, LoongArchMachineState *lams)

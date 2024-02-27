@@ -7,7 +7,8 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/acpi/cxl.h"
 
-static void acpi_dsdt_add_pci_route_table(Aml *dev, uint32_t irq)
+static void acpi_dsdt_add_pci_route_table(Aml *scope, Aml *dev, uint32_t irq,
+                                          const char *irq_source)
 {
     Aml *method, *crs;
     int i, slot_no;
@@ -36,16 +37,22 @@ static void acpi_dsdt_add_pci_route_table(Aml *dev, uint32_t irq)
         crs = aml_resource_template();
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, &irqs, 1));
+                                 AML_EXCLUSIVE, &irqs, 1, irq_source));
         aml_append(dev_gsi, aml_name_decl("_PRS", crs));
         crs = aml_resource_template();
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, &irqs, 1));
+                                 AML_EXCLUSIVE, &irqs, 1, irq_source));
         aml_append(dev_gsi, aml_name_decl("_CRS", crs));
         method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
         aml_append(dev_gsi, method);
-        aml_append(dev, dev_gsi);
+        if (irq_source != NULL) {
+            Aml *dep_pkg = aml_package(1);
+            aml_append(dep_pkg, aml_name("%s", irq_source));
+            aml_append(dev_gsi, aml_name_decl("_DEP", dep_pkg));
+        }
+
+        aml_append(scope, dev_gsi);
     }
 }
 
@@ -125,7 +132,8 @@ static void acpi_dsdt_add_pci_osc(Aml *dev)
     aml_append(dev, method);
 }
 
-void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
+void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg,
+                        const char *msi_dep, const char *irq_source)
 {
     int nr_pcie_buses = cfg->ecam.size / PCIE_MMCFG_SIZE_MIN;
     Aml *method, *crs, *dev, *rbuf;
@@ -166,6 +174,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
                 aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A08")));
                 aml_append(dev, aml_name_decl("_CID", aml_string("PNP0A03")));
             }
+
             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
             aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
             aml_append(dev, aml_name_decl("_STR", aml_unicode("pxb Device")));
@@ -174,7 +183,33 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
                 aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
             }
 
-            acpi_dsdt_add_pci_route_table(dev, cfg->irq);
+            acpi_dsdt_add_pci_route_table(scope, dev, cfg->irq, irq_source);
+
+            if (msi_dep != NULL && irq_source != NULL) {
+                Aml *dep_pkg = aml_package(6);
+                aml_append(dep_pkg, aml_name("%s", msi_dep));
+                aml_append(dep_pkg, aml_name("%s", irq_source));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI0"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI1"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI2"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI3"));
+                aml_append(dev, aml_name_decl("_DEP", dep_pkg));
+            } else if (irq_source != NULL) {
+                Aml *dep_pkg = aml_package(5);
+                aml_append(dep_pkg, aml_name("%s", irq_source));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI0"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI1"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI2"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI3"));
+                aml_append(dev, aml_name_decl("_DEP", dep_pkg));
+            } else {
+                Aml *dep_pkg = aml_package(4);
+                aml_append(dep_pkg, aml_name("\\_SB.GSI0"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI1"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI2"));
+                aml_append(dep_pkg, aml_name("\\_SB.GSI3"));
+                aml_append(dev, aml_name_decl("_DEP", dep_pkg));
+            }
 
             /*
              * Resources defined for PXBs are composed of the following parts:
@@ -205,7 +240,33 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
     aml_append(dev, aml_name_decl("_STR", aml_unicode("PCIe 0 Device")));
     aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
 
-    acpi_dsdt_add_pci_route_table(dev, cfg->irq);
+    acpi_dsdt_add_pci_route_table(scope, dev, cfg->irq, irq_source);
+
+    if (msi_dep != NULL && irq_source != NULL) {
+        Aml *dep_pkg = aml_package(6);
+        aml_append(dep_pkg, aml_name("%s", msi_dep));
+        aml_append(dep_pkg, aml_name("%s", irq_source));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI0"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI1"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI2"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI3"));
+        aml_append(dev, aml_name_decl("_DEP", dep_pkg));
+    } else if (irq_source != NULL) {
+        Aml *dep_pkg = aml_package(5);
+        aml_append(dep_pkg, aml_name("%s", irq_source));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI0"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI1"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI2"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI3"));
+        aml_append(dev, aml_name_decl("_DEP", dep_pkg));
+    } else {
+        Aml *dep_pkg = aml_package(4);
+        aml_append(dep_pkg, aml_name("\\_SB.GSI0"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI1"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI2"));
+        aml_append(dep_pkg, aml_name("\\_SB.GSI3"));
+        aml_append(dev, aml_name_decl("_DEP", dep_pkg));
+    }
 
     method = aml_method("_CBA", 0, AML_NOTSERIALIZED);
     aml_append(method, aml_return(aml_int(cfg->ecam.base)));
@@ -282,7 +343,8 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
     crs_range_set_free(&crs_range_set);
 }
 
-void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq)
+void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq, const char *msi_dep,
+                             const char *irq_source)
 {
     bool ambig;
     Object *obj = object_resolve_path_type("", TYPE_GPEX_HOST, &ambig);
@@ -292,5 +354,5 @@ void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq)
     }
 
     GPEX_HOST(obj)->gpex_cfg.irq = irq;
-    acpi_dsdt_add_gpex(scope, &GPEX_HOST(obj)->gpex_cfg);
+    acpi_dsdt_add_gpex(scope, &GPEX_HOST(obj)->gpex_cfg, msi_dep, irq_source);
 }

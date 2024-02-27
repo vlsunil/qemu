@@ -70,7 +70,8 @@ Aml *aml_irq_no_flags(uint8_t irq)
 Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
                    AmlLevelAndEdge level_and_edge,
                    AmlActiveHighAndLow high_and_low, AmlShared shared,
-                   uint32_t *irq_list, uint8_t irq_count)
+                   uint32_t *irq_list, uint8_t irq_count,
+                   const char *irq_source)
 {
     return NULL;
 }

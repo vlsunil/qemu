@@ -49,7 +49,7 @@ void build_ged_aml(Aml *table, const char *name, HotplugHandler *hotplug_dev,
 
     /* _CRS interrupt */
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_EDGE, AML_ACTIVE_HIGH,
-                                  AML_EXCLUSIVE, &ged_irq, 1));
+                                  AML_EXCLUSIVE, &ged_irq, 1, NULL));
 
     aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0013")));
     aml_append(dev, aml_name_decl("_UID", aml_string(GED_DEVICE)));

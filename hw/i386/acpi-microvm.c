@@ -96,7 +96,7 @@ static void acpi_dsdt_add_pci(Aml *scope, MicrovmMachineState *mms)
         return;
     }
 
-    acpi_dsdt_add_gpex(scope, &mms->gpex);
+    acpi_dsdt_add_gpex(scope, &mms->gpex, NULL);
 }
 
 static void

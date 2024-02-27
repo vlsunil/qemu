@@ -988,7 +988,7 @@ static Aml *build_link_dev(const char *name, uint8_t uid, Aml *reg)
 
     crs = aml_resource_template();
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                  AML_SHARED, irqs, ARRAY_SIZE(irqs)));
+                                  AML_SHARED, irqs, ARRAY_SIZE(irqs), NULL));
     aml_append(dev, aml_name_decl("_PRS", crs));
 
     method = aml_method("_STA", 0, AML_NOTSERIALIZED);
@@ -1025,7 +1025,7 @@ static Aml *build_gsi_link_dev(const char *name, uint8_t uid, uint8_t gsi)
     crs = aml_resource_template();
     irqs = gsi;
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                  AML_SHARED, &irqs, 1));
+                                  AML_SHARED, &irqs, 1, NULL));
     aml_append(dev, aml_name_decl("_PRS", crs));
 
     aml_append(dev, aml_name_decl("_CRS", crs));
@@ -1052,7 +1052,7 @@ static Aml *build_iqcr_method(bool is_piix4)
 
     irqs = 0;
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL,
-                                  AML_ACTIVE_HIGH, AML_SHARED, &irqs, 1));
+                                  AML_ACTIVE_HIGH, AML_SHARED, &irqs, 1, NULL));
     aml_append(method, aml_name_decl("PRR0", crs));
 
     aml_append(method,
@@ -1114,7 +1114,7 @@ static void build_piix4_pci0_int(Aml *table)
         irqs = 9;
         aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL,
                                       AML_ACTIVE_HIGH, AML_SHARED,
-                                      &irqs, 1));
+                                      &irqs, 1, NULL));
         aml_append(dev, aml_name_decl("_PRS", crs));
 
         /* The SCI cannot be disabled and is always attached to GSI 9,
