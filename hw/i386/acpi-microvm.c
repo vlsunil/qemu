@@ -78,7 +78,7 @@ static void acpi_dsdt_add_virtio(Aml *scope,
             uint32_t irq = mms->virtio_irq_base + index;
             hwaddr base = VIRTIO_MMIO_BASE + index * 512;
             hwaddr size = 512;
-            virtio_acpi_dsdt_add(scope, base, size, irq, index, 1);
+            virtio_acpi_dsdt_add(scope, base, size, irq, index, 1, NULL);
         }
     }
 }
