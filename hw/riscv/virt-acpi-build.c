@@ -154,7 +154,7 @@ acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
                                          uart_memmap->size, AML_READ_WRITE));
     aml_append(crs,
                 aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                               AML_EXCLUSIVE, &uart_irq, 1));
+                               AML_EXCLUSIVE, &uart_irq, 1, NULL));
     aml_append(dev, aml_name_decl("_CRS", crs));
 
     Aml *pkg = aml_package(2);

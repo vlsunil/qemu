@@ -36,12 +36,12 @@ static void acpi_dsdt_add_pci_route_table(Aml *dev, uint32_t irq)
         crs = aml_resource_template();
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, &irqs, 1));
+                                 AML_EXCLUSIVE, &irqs, 1, NULL));
         aml_append(dev_gsi, aml_name_decl("_PRS", crs));
         crs = aml_resource_template();
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, &irqs, 1));
+                                 AML_EXCLUSIVE, &irqs, 1, NULL));
         aml_append(dev_gsi, aml_name_decl("_CRS", crs));
         method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
         aml_append(dev_gsi, method);
