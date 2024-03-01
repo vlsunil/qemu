@@ -75,7 +75,7 @@ void xhci_sysbus_build_aml(Aml *scope, uint32_t mmio, unsigned int irq)
 
     aml_append(crs, aml_memory32_fixed(mmio, XHCI_LEN_REGS, AML_READ_WRITE));
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                  AML_EXCLUSIVE, &irq, 1));
+                                  AML_EXCLUSIVE, &irq, 1, NULL));
 
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0D10")));
     aml_append(dev, aml_name_decl("_CRS", crs));

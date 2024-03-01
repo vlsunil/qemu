@@ -25,7 +25,7 @@ void virtio_acpi_dsdt_add(Aml *scope, const hwaddr base, const hwaddr size,
         aml_append(crs, aml_memory32_fixed(virtio_base, size, AML_READ_WRITE));
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, &irq, 1));
+                                 AML_EXCLUSIVE, &irq, 1, NULL));
         aml_append(dev, aml_name_decl("_CRS", crs));
         aml_append(scope, dev);
         virtio_base += size;

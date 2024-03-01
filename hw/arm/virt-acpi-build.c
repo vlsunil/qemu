@@ -90,7 +90,7 @@ static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
                                        uart_memmap->size, AML_READ_WRITE));
     aml_append(crs,
                aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                             AML_EXCLUSIVE, &uart_irq, 1));
+                             AML_EXCLUSIVE, &uart_irq, 1, NULL));
     aml_append(dev, aml_name_decl("_CRS", crs));
 
     aml_append(scope, dev);
@@ -150,7 +150,7 @@ static void acpi_dsdt_add_gpio(Aml *scope, const MemMapEntry *gpio_memmap,
     aml_append(crs, aml_memory32_fixed(gpio_memmap->base, gpio_memmap->size,
                                        AML_READ_WRITE));
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                  AML_EXCLUSIVE, &gpio_irq, 1));
+                                  AML_EXCLUSIVE, &gpio_irq, 1, NULL));
     aml_append(dev, aml_name_decl("_CRS", crs));
 
     Aml *aei = aml_resource_template();
