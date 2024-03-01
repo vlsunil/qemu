@@ -417,19 +417,21 @@ static void build_dsdt(GArray *table_data,
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ, 0, VIRTIO_COUNT, NULL);
-        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ);
+        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ, NULL);
     } else if (socket_count == 2) {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES, 0,
                              VIRTIO_COUNT, NULL);
-        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES);
+        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
+                                NULL);
     } else {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES, 0,
                              VIRTIO_COUNT, NULL);
-        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2);
+        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2,
+                                NULL);
     }
 
     aml_append(dsdt, scope);

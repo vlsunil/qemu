@@ -308,7 +308,7 @@ static void build_pci_device_aml(Aml *scope, LoongArchMachineState *lams)
         .bus         = lams->pci_bus,
     };
 
-    acpi_dsdt_add_gpex(scope, &cfg);
+    acpi_dsdt_add_gpex(scope, &cfg, NULL);
 }
 
 static void build_flash_aml(Aml *scope, LoongArchMachineState *lams)
