@@ -10,6 +10,7 @@
 
 void virtio_acpi_dsdt_add(Aml *scope, const hwaddr virtio_mmio_base,
                           const hwaddr virtio_mmio_size, uint32_t mmio_irq,
-                          long int start_index, int num);
+                          long int start_index, int num,
+                          const char *irq_source);
 
 #endif

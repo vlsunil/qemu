@@ -416,19 +416,19 @@ static void build_dsdt(GArray *table_data,
     if (socket_count == 1) {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
-                             VIRTIO_IRQ, 0, VIRTIO_COUNT);
+                             VIRTIO_IRQ, 0, VIRTIO_COUNT, NULL);
         acpi_dsdt_add_gpex_host(scope, PCIE_IRQ);
     } else if (socket_count == 2) {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES, 0,
-                             VIRTIO_COUNT);
+                             VIRTIO_COUNT, NULL);
         acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES);
     } else {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES, 0,
-                             VIRTIO_COUNT);
+                             VIRTIO_COUNT, NULL);
         acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2);
     }
 
