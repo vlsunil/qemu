@@ -148,14 +148,32 @@ static void acpi_dsdt_add_plic_aplic(Aml *scope, RISCVVirtState *s)
     uint32_t gsi_base;
     uint8_t  socket;
 
-    if (s->aia_type != VIRT_AIA_TYPE_NONE) {
+    if (s->aia_type == VIRT_AIA_TYPE_NONE) {
+        /* PLICs */
+        for (socket = 0; socket < riscv_socket_count(ms); socket++) {
+            plic_aplic_addr = s->memmap[VIRT_PLIC].base +
+                         s->memmap[VIRT_PLIC].size * socket;
+            gsi_base = VIRT_IRQCHIP_NUM_SOURCES * socket;
+            Aml *dev = aml_device("IC%.02X", socket);
+            aml_append(dev, aml_name_decl("_HID", aml_string("RSCV0001")));
+            aml_append(dev, aml_name_decl("_UID", aml_int(socket)));
+            aml_append(dev, aml_name_decl("_GSB", aml_int(gsi_base)));
+
+            Aml *crs = aml_resource_template();
+            aml_append(crs, aml_memory32_fixed(plic_aplic_addr,
+                                               s->memmap[VIRT_PLIC].size,
+                                               AML_READ_WRITE));
+            aml_append(dev, aml_name_decl("_CRS", crs));
+            aml_append(scope, dev);
+        }
+    } else if (s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) {
         /* APLICs */
         for (socket = 0; socket < riscv_socket_count(ms); socket++) {
             plic_aplic_addr = s->memmap[VIRT_APLIC_S].base +
                              s->memmap[VIRT_APLIC_S].size * socket;
             gsi_base = VIRT_IRQCHIP_NUM_SOURCES * socket;
             Aml *dev = aml_device("IC%.02X", socket);
-            aml_append(dev, aml_name_decl("_HID", aml_string("RSCV0001")));
+            aml_append(dev, aml_name_decl("_HID", aml_string("RSCV0002")));
             aml_append(dev, aml_name_decl("_UID", aml_int(socket)));
             aml_append(dev, aml_name_decl("_GSB", aml_int(gsi_base)));
 
@@ -167,29 +185,12 @@ static void acpi_dsdt_add_plic_aplic(Aml *scope, RISCVVirtState *s)
             aml_append(scope, dev);
         }
     } else {
-        /* PLICs */
-        for (socket = 0; socket < riscv_socket_count(ms); socket++) {
-            plic_aplic_addr = s->memmap[VIRT_PLIC].base +
-                         s->memmap[VIRT_PLIC].size * socket;
-            gsi_base = VIRT_IRQCHIP_NUM_SOURCES * socket;
-            Aml *dev = aml_device("IC%.02X", socket);
-            aml_append(dev, aml_name_decl("_HID", aml_string("RSCV0002")));
-            aml_append(dev, aml_name_decl("_UID", aml_int(socket)));
-            aml_append(dev, aml_name_decl("_GSB", aml_int(gsi_base)));
-
-            Aml *crs = aml_resource_template();
-            aml_append(crs, aml_memory32_fixed(plic_aplic_addr,
-                                               s->memmap[VIRT_PLIC].size,
-                                               AML_READ_WRITE));
-            aml_append(dev, aml_name_decl("_CRS", crs));
-            aml_append(scope, dev);
-        }
+        return;
     }
 }
 
-static void
-acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
-                    uint32_t uart_irq)
+static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
+                               uint32_t uart_irq, const char *irq_source)
 {
     Aml *dev = aml_device("COM0");
     aml_append(dev, aml_name_decl("_HID", aml_string("PNP0501")));
@@ -200,7 +201,7 @@ acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
                                          uart_memmap->size, AML_READ_WRITE));
     aml_append(crs,
                 aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                               AML_EXCLUSIVE, &uart_irq, 1, NULL));
+                               AML_EXCLUSIVE, &uart_irq, 1, irq_source));
     aml_append(dev, aml_name_decl("_CRS", crs));
 
     Aml *pkg = aml_package(2);
@@ -217,6 +218,7 @@ acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
     aml_append(package, pkg1);
 
     aml_append(dev, aml_name_decl("_DSD", package));
+
     aml_append(scope, dev);
 }
 
@@ -458,24 +460,24 @@ static void build_dsdt(GArray *table_data,
     socket_count = riscv_socket_count(ms);
 
     acpi_dsdt_add_plic_aplic(scope, s);
-    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0], UART0_IRQ);
+    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0], UART0_IRQ, "\\_SB.IC00");
 
     if (socket_count == 1) {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
-                             VIRTIO_IRQ, 0, VIRTIO_COUNT, NULL);
+                             VIRTIO_IRQ, 0, VIRTIO_COUNT, "\\_SB.IC00");
         acpi_dsdt_add_gpex_host(scope, PCIE_IRQ);
     } else if (socket_count == 2) {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES, 0,
-                             VIRTIO_COUNT, NULL);
+                             VIRTIO_COUNT, "\\_SB.IC01");
         acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES);
     } else {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES, 0,
-                             VIRTIO_COUNT, NULL);
+                             VIRTIO_COUNT, "\\_SB.IC00");
         acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2);
     }
 
