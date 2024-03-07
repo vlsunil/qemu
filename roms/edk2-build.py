@@ -192,6 +192,9 @@ def build_one(cfg, build, jobs = None, silent = False, nologs = False):
         cmdline += [ '-n', jobs ]
     for arch in b['arch'].split():
         cmdline += [ '-a', arch ]
+    if 'module' in b:
+        for module in b['module'].split():
+            cmdline += [ '-m', module ]
     if 'opts' in b:
         for name in b['opts'].split():
             section = 'opts.' + name
