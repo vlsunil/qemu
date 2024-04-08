@@ -189,7 +189,7 @@ static void acpi_dsdt_add_plic_aplic(Aml *scope, RISCVVirtState *s)
 
 static void
 acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
-                    uint32_t uart_irq)
+                    uint32_t uart_irq, const char *dep)
 {
     Aml *dev = aml_device("COM0");
     aml_append(dev, aml_name_decl("_HID", aml_string("PNP0501")));
@@ -217,6 +217,12 @@ acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
     aml_append(package, pkg1);
 
     aml_append(dev, aml_name_decl("_DSD", package));
+    if (dep != NULL) {
+        Aml *dep_pkg = aml_package(1);
+        aml_append(dep_pkg, aml_name("%s", dep));
+        aml_append(dev, aml_name_decl("_DEP", dep_pkg));
+    }
+
     aml_append(scope, dev);
 }
 
@@ -458,7 +464,7 @@ static void build_dsdt(GArray *table_data,
     socket_count = riscv_socket_count(ms);
 
     acpi_dsdt_add_plic_aplic(scope, s);
-    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0], UART0_IRQ);
+    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0], UART0_IRQ, "\\_SB.IC00");
 
     if (socket_count == 1) {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
