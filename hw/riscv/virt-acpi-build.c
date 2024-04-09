@@ -466,19 +466,22 @@ static void build_dsdt(GArray *table_data,
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ, 0, VIRTIO_COUNT, "\\_SB.IC00");
-        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ);
+        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ, "\\_SB.IC00");
     } else if (socket_count == 2) {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES, 0,
                              VIRTIO_COUNT, "\\_SB.IC01");
-        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES);
+        acpi_dsdt_add_gpex_host(scope,
+                                PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
+                                "\\_SB.IC01");
     } else {
         virtio_acpi_dsdt_add(scope, memmap[VIRT_VIRTIO].base,
                              memmap[VIRT_VIRTIO].size,
                              VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES, 0,
                              VIRTIO_COUNT, "\\_SB.IC00");
-        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2);
+        acpi_dsdt_add_gpex_host(scope, PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2,
+                                "\\_SB.IC02");
     }
 
     aml_append(dsdt, scope);

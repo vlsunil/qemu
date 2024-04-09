@@ -47,6 +47,7 @@ struct GPEXConfig {
     MemMapEntry pio;
     int         irq;
     PCIBus      *bus;
+    const char  *irq_source;
 };
 
 struct GPEXHost {
@@ -71,7 +72,7 @@ struct GPEXHost {
 int gpex_set_irq_num(GPEXHost *s, int index, int gsi);
 
 void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg);
-void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq);
+void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq, const char *irq_source);
 
 #define PCI_HOST_PIO_BASE               "x-pio-base"
 #define PCI_HOST_PIO_SIZE               "x-pio-size"

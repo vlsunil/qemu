@@ -7,7 +7,8 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/acpi/cxl.h"
 
-static void acpi_dsdt_add_pci_route_table(Aml *dev, uint32_t irq)
+static void acpi_dsdt_add_pci_route_table(Aml *dev, uint32_t irq,
+                                          const char *irq_source)
 {
     Aml *method, *crs;
     int i, slot_no;
@@ -36,12 +37,12 @@ static void acpi_dsdt_add_pci_route_table(Aml *dev, uint32_t irq)
         crs = aml_resource_template();
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, &irqs, 1, NULL));
+                                 AML_EXCLUSIVE, &irqs, 1, irq_source));
         aml_append(dev_gsi, aml_name_decl("_PRS", crs));
         crs = aml_resource_template();
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, &irqs, 1, NULL));
+                                 AML_EXCLUSIVE, &irqs, 1, irq_source));
         aml_append(dev_gsi, aml_name_decl("_CRS", crs));
         method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
         aml_append(dev_gsi, method);
@@ -174,7 +175,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
                 aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
             }
 
-            acpi_dsdt_add_pci_route_table(dev, cfg->irq);
+            acpi_dsdt_add_pci_route_table(dev, cfg->irq, cfg->irq_source);
 
             /*
              * Resources defined for PXBs are composed of the following parts:
@@ -205,7 +206,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
     aml_append(dev, aml_name_decl("_STR", aml_unicode("PCIe 0 Device")));
     aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
 
-    acpi_dsdt_add_pci_route_table(dev, cfg->irq);
+    acpi_dsdt_add_pci_route_table(dev, cfg->irq, cfg->irq_source);
 
     method = aml_method("_CBA", 0, AML_NOTSERIALIZED);
     aml_append(method, aml_return(aml_int(cfg->ecam.base)));
@@ -282,7 +283,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
     crs_range_set_free(&crs_range_set);
 }
 
-void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq)
+void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq, const char *irq_source)
 {
     bool ambig;
     Object *obj = object_resolve_path_type("", TYPE_GPEX_HOST, &ambig);
@@ -292,5 +293,6 @@ void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq)
     }
 
     GPEX_HOST(obj)->gpex_cfg.irq = irq;
+    GPEX_HOST(obj)->gpex_cfg.irq_source = irq_source;
     acpi_dsdt_add_gpex(scope, &GPEX_HOST(obj)->gpex_cfg);
 }
