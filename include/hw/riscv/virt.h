@@ -90,6 +90,7 @@ enum {
     VIRT_PCIE_ECAM,
     VIRT_PCDIMM_ACPI,
     VIRT_ACPI_GED,
+    VIRT_ACPI_SMMC,
 };
 
 enum {

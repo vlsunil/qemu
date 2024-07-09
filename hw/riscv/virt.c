@@ -87,11 +87,11 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_APLIC_M] =      {  0xc000000, APLIC_SIZE(VIRT_CPUS_MAX) },
     [VIRT_APLIC_S] =      {  0xd000000, APLIC_SIZE(VIRT_CPUS_MAX) },
     [VIRT_UART0] =        { 0x10000000,         0x100 },
-    [VIRT_ACPI_GED] =     { 0x10000200,         ACPI_GED_EVT_SEL_LEN },
     [VIRT_VIRTIO] =       { 0x10001000,        0x1000 },
     [VIRT_FW_CFG] =       { 0x10100000,          0x18 },
     [VIRT_PCDIMM_ACPI] =  { 0x10200000, MEMORY_HOTPLUG_IO_LEN },
     [VIRT_ACPI_GED] =     { 0x10210000, ACPI_GED_EVT_SEL_LEN },
+    [VIRT_ACPI_SMMC] =    { 0x10220000, ACPI_GED_MSI_CTRL_LEN * 2},
     [VIRT_FLASH] =        { 0x20000000,     0x4000000 },
     [VIRT_IMSIC_M] =      { 0x24000000, VIRT_IMSIC_MAX_SIZE },
     [VIRT_IMSIC_S] =      { 0x28000000, VIRT_IMSIC_MAX_SIZE },
@@ -1462,7 +1462,13 @@ static DeviceState *create_acpi_ged(RISCVVirtState *s)
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, s->memmap[VIRT_ACPI_GED].base);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, s->memmap[VIRT_PCDIMM_ACPI].base);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(s->irqchip[0], GED_IRQ));
+
+    if (s->acpi_ged_msimode) {
+        /* Index 3 is chosen as ged-regs is initialized before SMMC region */
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 3, s->memmap[VIRT_ACPI_SMMC].base);
+    } else {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(s->irqchip[0], GED_IRQ));
+    }
 
     return dev;
 }
