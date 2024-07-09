@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 #include "hw/char/serial.h"
+#include "qom/object.h"
 #include "target/riscv/cpu.h"
 #include "hw/core/sysbus-fdt.h"
 #include "target/riscv/pmu.h"
@@ -1454,6 +1455,9 @@ static DeviceState *create_acpi_ged(RISCVVirtState *s)
 
     dev = qdev_new(TYPE_ACPI_GED);
     qdev_prop_set_uint32(dev, "ged-event", event);
+    if (s->acpi_ged_msimode) {
+        qdev_prop_set_bool(dev, "msimode", true);
+    }
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, s->memmap[VIRT_ACPI_GED].base);
@@ -1935,6 +1939,25 @@ static void virt_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
+static bool virt_get_acpi_ged_msi(Object *obj, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    if (virt_is_acpi_enabled(s))
+        return s->acpi_ged_msimode;
+    else
+        return false;
+}
+
+static void virt_set_acpi_ged_msi(Object *obj, bool value, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+   if (virt_is_acpi_enabled(s))
+        s->acpi_ged_msimode = value;
+}
+
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1997,6 +2020,10 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, "acpi",
                                           "Enable ACPI");
+    object_class_property_add_bool(oc, "ged-msi", virt_get_acpi_ged_msi, virt_set_acpi_ged_msi);
+    object_class_property_set_description(oc, "acpi",
+                                          "Enable ACPI");
+
 }
 
 static const TypeInfo virt_machine_typeinfo = {
