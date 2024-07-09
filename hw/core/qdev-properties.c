@@ -813,6 +813,11 @@ void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value)
     object_property_set_int(OBJECT(dev), name, value, &error_abort);
 }
 
+void qdev_prop_set_bool(DeviceState *dev, const char *name, bool value)
+{
+    object_property_set_bool(OBJECT(dev), name, value, &error_abort);
+}
+
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value)
 {
     object_property_set_int(OBJECT(dev), name, value, &error_abort);

@@ -187,6 +187,7 @@ bool qdev_prop_set_drive_err(DeviceState *dev, const char *name,
  * @value must be valid.  Each property may be set at most once.
  */
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value);
+void qdev_prop_set_bool(DeviceState *dev, const char *name, bool value);
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
