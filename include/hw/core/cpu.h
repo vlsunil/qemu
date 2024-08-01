@@ -480,6 +480,7 @@ struct CPUState {
     bool created;
     bool stop;
     bool stopped;
+    bool hold_stop;
 
     /* Should CPU start in powered-off state? */
     bool start_powered_off;
