@@ -160,11 +160,12 @@ static void build_smcc_ged_aml(Aml *table, int gsi_base, hwaddr smc_ged_addr)
     hwaddr smc_ged_addr_1 = smc_ged_addr + ACPI_GED_MSI_CTRL_LEN;
 
     dev = aml_device("SMC%.01X", 0);
-    aml_append(dev, aml_name_decl("_HID", aml_string("RSCV0005")));
+    aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0019")));
     aml_append(dev, aml_name_decl("_UID", aml_int(0)));
     aml_append(dev, aml_name_decl("_GSB", aml_int(gsi_base)));
 
-    Aml *top_pkg = aml_package(2);
+    Aml *top_pkg = aml_package(3);
+    aml_append(top_pkg, aml_int(1)); // Number of GSIs supported
 
     Aml *gs0_pkg = aml_package(5);
     aml_append(gs0_pkg, aml_int(gsi_base + GED_SMMC_MSI + 1));
@@ -188,7 +189,7 @@ static void build_smcc_ged_aml(Aml *table, int gsi_base, hwaddr smc_ged_addr)
 
 }
 
-static void acpi_dsdt_add_plic_aplic(Aml *scope, uint8_t socket_count,
+static uint32_t acpi_dsdt_add_plic_aplic(Aml *scope, uint8_t socket_count,
                                      uint64_t mmio_base, uint64_t mmio_size,
                                      const char *hid)
 {
@@ -210,6 +211,8 @@ static void acpi_dsdt_add_plic_aplic(Aml *scope, uint8_t socket_count,
         aml_append(dev, aml_name_decl("_CRS", crs));
         aml_append(scope, dev);
     }
+
+    return gsi_base;
 }
 
 static void
@@ -487,14 +490,13 @@ static void build_dsdt(GArray *table_data,
         acpi_dsdt_add_plic_aplic(scope, socket_count, memmap[VIRT_PLIC].base,
                                  memmap[VIRT_PLIC].size, "RSCV0001");
     } else {
+        gsi_base = acpi_dsdt_add_plic_aplic(scope, socket_count, memmap[VIRT_APLIC_S].base,
+                                 memmap[VIRT_APLIC_S].size, "RSCV0002");
         /* SMMC DSDT node */
         if ((s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) & s->acpi_ged_msimode) {
             gsi_base = gsi_base + VIRT_IRQCHIP_NUM_SOURCES + 1;
             s->smmc_gsi_base = gsi_base;
             build_smcc_ged_aml(scope, gsi_base, s->memmap[VIRT_ACPI_SMMC].base);
-        } else {
-          acpi_dsdt_add_plic_aplic(scope, socket_count, memmap[VIRT_APLIC_S].base,
-                                   memmap[VIRT_APLIC_S].size, "RSCV0002");
         }
     }
 
