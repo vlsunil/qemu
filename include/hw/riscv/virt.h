@@ -106,8 +106,8 @@ enum {
 
 /* This enum describes all the platform MSIs w.r.t GSI base set in SMMC */
 enum {
-   SMMC_TEST_MSI = 0,
-   GED_SMMC_MSI = 1,
+   GED_SMMC_MSI = 0,
+   SMMC_TEST_MSI = 1,
 };
 
 #define VIRT_PLATFORM_BUS_NUM_IRQS 32
