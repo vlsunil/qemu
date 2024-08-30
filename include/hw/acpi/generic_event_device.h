@@ -99,10 +99,25 @@ OBJECT_DECLARE_SIMPLE_TYPE(AcpiGedState, ACPI_GED)
 #define ACPI_GED_NVDIMM_HOTPLUG_EVT 0x4
 #define ACPI_GED_CPU_HOTPLUG_EVT    0x8
 
+#define ACPI_GED_MSI_CTRL_ADDR_LOW  0x0
+#define ACPI_GED_MSI_CTRL_ADDR_HIGH 0x4
+#define ACPI_GED_MSI_CTRL_DATA      0x8
+#define ACPI_GED_MSI_CTRL_ENABLE    0xC
+#define ACPI_GED_MSI_CTRL_LEN       0x1000
+
+typedef struct GEDMsiState {
+    uint32_t addr_lo;
+    uint32_t addr_hi;
+    uint32_t data;
+    bool     enable;
+} GEDMsiState;
+
 typedef struct GEDState {
     MemoryRegion evt;
     MemoryRegion regs;
     uint32_t     sel;
+    MemoryRegion msi_control;
+    GEDMsiState msi_state;
 } GEDState;
 
 struct AcpiGedState {
@@ -115,6 +130,7 @@ struct AcpiGedState {
     uint32_t ged_event_bitmap;
     qemu_irq irq;
     AcpiGhesState ghes_state;
+    bool msi_mode;
 };
 
 void build_ged_aml(Aml *table, const char* name, HotplugHandler *hotplug_dev,

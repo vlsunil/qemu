@@ -13,12 +13,14 @@
 #include "qapi/error.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/generic_event_device.h"
+#include "exec/address-spaces.h"
 #include "hw/irq.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "sysemu/runstate.h"
 
 static const uint32_t ged_supported_events[] = {
@@ -152,6 +154,92 @@ void acpi_dsdt_add_power_button(Aml *scope)
     aml_append(dev, aml_name_decl("_UID", aml_int(0)));
     aml_append(scope, dev);
 }
+
+static uint64_t ged_msictrl_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val;
+    GEDState *ged_st = opaque;
+
+    /* All regions are defined 4 bytes only */
+    if ((addr & 0x3) != 0) {
+        goto out_err;
+    }
+
+    if (addr >= ACPI_GED_MSI_CTRL_LEN)
+        addr = addr % ACPI_GED_MSI_CTRL_LEN;
+
+    switch (addr) {
+    case ACPI_GED_MSI_CTRL_ADDR_LOW:
+        val = ged_st->msi_state.addr_lo;
+        break;
+    case ACPI_GED_MSI_CTRL_ADDR_HIGH:
+        val = ged_st->msi_state.addr_hi;
+        break;
+    case ACPI_GED_MSI_CTRL_DATA:
+        val = ged_st->msi_state.data;
+        break;
+    case ACPI_GED_MSI_CTRL_ENABLE:
+        val = ged_st->msi_state.enable;
+        break;
+    default:
+        goto out_err;
+    }
+
+    return val;
+
+out_err:
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: Invalid register read 0x%" HWADDR_PRIx "\n",
+                  __func__, addr);
+    return 0;
+}
+
+static void ged_msictrl_write(void *opaque, hwaddr addr, uint64_t data,
+                          unsigned int size)
+{
+    GEDState *ged_st = opaque;
+
+    /* All regions are defined 4 bytes only */
+    if ((addr & 0x3) != 0) {
+        goto out_err;
+    }
+    if (addr >= ACPI_GED_MSI_CTRL_LEN)
+        addr = addr % ACPI_GED_MSI_CTRL_LEN;
+
+    switch (addr) {
+    case ACPI_GED_MSI_CTRL_ADDR_LOW:
+        ged_st->msi_state.addr_lo = data;
+        break;
+    case ACPI_GED_MSI_CTRL_ADDR_HIGH:
+        ged_st->msi_state.addr_hi = data;
+        break;
+    case ACPI_GED_MSI_CTRL_DATA:
+        ged_st->msi_state.data = data;
+        break;
+    case ACPI_GED_MSI_CTRL_ENABLE:
+        ged_st->msi_state.enable = (data == 1);
+        break;
+    default:
+        goto out_err;
+    }
+
+    return;
+
+out_err:
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: Invalid register write 0x%" HWADDR_PRIx "\n",
+                  __func__, addr);
+}
+
+static const MemoryRegionOps ged_msictrl_ops = {
+    .read = ged_msictrl_read,
+    .write = ged_msictrl_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
 
 /* Memory read by the GED _EVT AML dynamic method */
 static uint64_t ged_evt_read(void *opaque, hwaddr addr, unsigned size)
@@ -318,6 +406,7 @@ static void acpi_ged_send_event(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 
 static Property acpi_ged_properties[] = {
     DEFINE_PROP_UINT32("ged-event", AcpiGedState, ged_event_bitmap, 0),
+    DEFINE_PROP_BOOL("msimode", AcpiGedState, msi_mode, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -383,6 +472,23 @@ static const VMStateDescription vmstate_acpi_ged = {
         NULL
     }
 };
+
+static void acpi_ged_realize(DeviceState *dev, Error **errp)
+{
+    AcpiGedState *s = ACPI_GED(dev);
+    GEDState *ged_st = &s->ged_state;
+    Object *obj = OBJECT(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    if (s->msi_mode) {
+        /* MSI control region: Should only require if msimode is set to true */
+        memory_region_init_io(&ged_st->msi_control, obj, &ged_msictrl_ops, ged_st,
+                              TYPE_ACPI_GED "-msictrl", ACPI_GED_MSI_CTRL_LEN * 2);
+        sysbus_init_mmio(sbd, &ged_st->msi_control);
+    } else {
+        sysbus_init_irq(sbd, &s->irq);
+    }
+}
 
 static void acpi_ged_realize(DeviceState *dev, Error **errp)
 {
