@@ -143,12 +143,57 @@ static void acpi_dsdt_add_cpus(Aml *scope, RISCVVirtState *s)
     }
 }
 
+static void build_smmc_reg(Aml *pkg_aml, AmlAddressSpace as, uint8_t bit_width,
+                           uint8_t bit_offset, uint8_t access_width, uint64_t address)
+{
+    Aml *rs = aml_resource_template();
+    build_append_int_noprefix(rs->buf, 0x82, 1);  /* descriptor */
+    build_append_int_noprefix(rs->buf, 0x12, 1);  /* length[7:0] */
+    build_append_int_noprefix(rs->buf, 0x0, 1);   /* length[15:8] */
+    build_append_gas(rs->buf, as, bit_width, bit_offset, access_width, address);
+    aml_append(pkg_aml, rs);
+}
+
+static void build_smcc_ged_aml(Aml *table, int gsi_base, hwaddr smc_ged_addr)
+{
+    Aml *dev;
+    hwaddr smc_ged_addr_1 = smc_ged_addr + ACPI_GED_MSI_CTRL_LEN;
+
+    dev = aml_device("SMC%.01X", 0);
+    aml_append(dev, aml_name_decl("_HID", aml_string("RSCV0005")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(dev, aml_name_decl("_GSB", aml_int(gsi_base)));
+
+    Aml *top_pkg = aml_package(2);
+
+    Aml *gs0_pkg = aml_package(5);
+    aml_append(gs0_pkg, aml_int(gsi_base + GED_SMMC_MSI + 1));
+    build_smmc_reg(gs0_pkg, AML_AS_SYSTEM_MEMORY, 0x20, 0, 3, smc_ged_addr_1 + ACPI_GED_MSI_CTRL_ADDR_LOW); /* MSI ADDR LOW */
+    build_smmc_reg(gs0_pkg, AML_AS_SYSTEM_MEMORY, 0x20, 0, 3, smc_ged_addr_1 + ACPI_GED_MSI_CTRL_ADDR_HIGH);
+    build_smmc_reg(gs0_pkg, AML_AS_SYSTEM_MEMORY, 0x20, 0, 3, smc_ged_addr_1 + ACPI_GED_MSI_CTRL_DATA);
+    build_smmc_reg(gs0_pkg, AML_AS_SYSTEM_MEMORY, 0x20, 0, 3, smc_ged_addr_1 + ACPI_GED_MSI_CTRL_ENABLE);
+    aml_append(top_pkg, gs0_pkg);
+
+    Aml *gs1_pkg = aml_package(5);
+    aml_append(gs1_pkg, aml_int(gsi_base + GED_SMMC_MSI));
+    build_smmc_reg(gs1_pkg, AML_AS_SYSTEM_MEMORY, 0x20, 0, 3, smc_ged_addr + ACPI_GED_MSI_CTRL_ADDR_LOW); /* MSI ADDR LOW */
+    build_smmc_reg(gs1_pkg, AML_AS_SYSTEM_MEMORY, 0x20, 0, 3, smc_ged_addr + ACPI_GED_MSI_CTRL_ADDR_HIGH);
+    build_smmc_reg(gs1_pkg, AML_AS_SYSTEM_MEMORY, 0x20, 0, 3, smc_ged_addr + ACPI_GED_MSI_CTRL_DATA);
+    build_smmc_reg(gs1_pkg, AML_AS_SYSTEM_MEMORY, 0x20, 0, 3, smc_ged_addr + ACPI_GED_MSI_CTRL_ENABLE);
+    aml_append(top_pkg, gs1_pkg);
+
+    aml_append(dev, aml_name_decl("CFGN",top_pkg));
+
+    aml_append(table, dev);
+
+}
+
 static void acpi_dsdt_add_plic_aplic(Aml *scope, uint8_t socket_count,
                                      uint64_t mmio_base, uint64_t mmio_size,
                                      const char *hid)
 {
     uint64_t plic_aplic_addr;
-    uint32_t gsi_base;
+    uint32_t gsi_base = 0;
     uint8_t  socket;
 
     for (socket = 0; socket < socket_count; socket++) {
@@ -419,7 +464,8 @@ static void build_dsdt(GArray *table_data,
     const MemMapEntry *memmap = s->memmap;
     AcpiTable table = { .sig = "DSDT", .rev = 2, .oem_id = s->oem_id,
                         .oem_table_id = s->oem_table_id };
-
+    int gsi_base = 0;
+    int ged_gsi = GED_IRQ;
 
     acpi_table_begin(&table, table_data);
     dsdt = init_aml_allocator();
@@ -441,8 +487,15 @@ static void build_dsdt(GArray *table_data,
         acpi_dsdt_add_plic_aplic(scope, socket_count, memmap[VIRT_PLIC].base,
                                  memmap[VIRT_PLIC].size, "RSCV0001");
     } else {
-        acpi_dsdt_add_plic_aplic(scope, socket_count, memmap[VIRT_APLIC_S].base,
-                                 memmap[VIRT_APLIC_S].size, "RSCV0002");
+        /* SMMC DSDT node */
+        if ((s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) & s->acpi_ged_msimode) {
+            gsi_base = gsi_base + VIRT_IRQCHIP_NUM_SOURCES + 1;
+            s->smmc_gsi_base = gsi_base;
+            build_smcc_ged_aml(scope, gsi_base, s->memmap[VIRT_ACPI_SMMC].base);
+        } else {
+          acpi_dsdt_add_plic_aplic(scope, socket_count, memmap[VIRT_APLIC_S].base,
+                                   memmap[VIRT_APLIC_S].size, "RSCV0002");
+        }
     }
 
     acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0], UART0_IRQ);
@@ -470,8 +523,12 @@ static void build_dsdt(GArray *table_data,
         uint32_t event = object_property_get_uint(OBJECT(s->acpi_dev),
                                                   "ged-event", &error_abort);
 
+        if (s->acpi_ged_msimode) {
+            ged_gsi = s->smmc_gsi_base + GED_SMMC_MSI;
+        }
+
         build_ged_aml(scope, "\\_SB."GED_DEVICE, HOTPLUG_HANDLER(s->acpi_dev),
-                      GED_IRQ, AML_SYSTEM_MEMORY, memmap[VIRT_ACPI_GED].base);
+                      ged_gsi, AML_SYSTEM_MEMORY, memmap[VIRT_ACPI_GED].base);
 
         if (event & ACPI_GED_MEM_HOTPLUG_EVT) {
             build_memory_hotplug_aml(scope, ms->ram_slots, "\\_SB", NULL,
