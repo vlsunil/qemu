@@ -49,6 +49,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/tpm.h"
 #include "sysemu/qtest.h"
+#include "sysemu/runstate.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/display/ramfb.h"
@@ -85,6 +86,7 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_APLIC_M] =      {  0xc000000, APLIC_SIZE(VIRT_CPUS_MAX) },
     [VIRT_APLIC_S] =      {  0xd000000, APLIC_SIZE(VIRT_CPUS_MAX) },
     [VIRT_UART0] =        { 0x10000000,         0x100 },
+    [VIRT_ACPI_GED] =     { 0x10000200,         ACPI_GED_EVT_SEL_LEN },
     [VIRT_VIRTIO] =       { 0x10001000,        0x1000 },
     [VIRT_FW_CFG] =       { 0x10100000,          0x18 },
     [VIRT_PCDIMM_ACPI] =  { 0x10200000, MEMORY_HOTPLUG_IO_LEN },
@@ -167,6 +169,15 @@ static void virt_flash_map(RISCVVirtState *s,
                     sysmem);
     virt_flash_map1(s->flash[1], flashbase + flashsize, flashsize,
                     sysmem);
+}
+
+static void virt_powerdown_req(Notifier *n, void *opaque)
+{
+    RISCVVirtState *s = container_of(n, RISCVVirtState, powerdown_notifier);
+
+    if (s->acpi_dev) {
+        acpi_send_event(s->acpi_dev, ACPI_POWER_DOWN_STATUS);
+    }
 }
 
 static void create_pcie_irq_map(RISCVVirtState *s, void *fdt, char *nodename,
@@ -1435,7 +1446,7 @@ static DeviceState *create_acpi_ged(RISCVVirtState *s)
 {
     DeviceState *dev;
     MachineState *ms = MACHINE(s);
-    uint32_t event = 0;
+    uint32_t event = ACPI_GED_PWR_DOWN_EVT;
 
     if (ms->ram_slots) {
         event |= ACPI_GED_MEM_HOTPLUG_EVT;
@@ -1648,6 +1659,9 @@ static void virt_machine_init(MachineState *machine)
 
     if (virt_is_acpi_enabled(s)) {
         s->acpi_dev = create_acpi_ged(s);
+        /* connect powerdown request */
+        s->powerdown_notifier.notify = virt_powerdown_req;
+        qemu_register_powerdown_notifier(&s->powerdown_notifier);
     }
 
 

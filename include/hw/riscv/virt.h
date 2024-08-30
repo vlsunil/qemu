@@ -63,6 +63,7 @@ struct RISCVVirtState {
     const MemMapEntry *memmap;
     struct GPEXHost *gpex_host;
     DeviceState *acpi_dev;
+    Notifier powerdown_notifier;
 };
 
 enum {
